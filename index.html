@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flappy Bird</title>
+    <link rel="icon" type="image/jpeg" href="Wing for Favicon.jpeg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="game-shell">
+        <header class="hud">
+          <h1>Flappy Bird</h1>
+          <p class="score-label">Score: <span id="score">0</span></p>
+        </header>
+
+        <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+        <div id="overlay" class="overlay active">
+          <h2 id="overlayTitle">Ready to fly?</h2>
+          <p id="overlayText">Press Space, click, or tap to flap.</p>
+          <button id="startButton">Start Game</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

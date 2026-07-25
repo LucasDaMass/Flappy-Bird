@@ -1,0 +1,100 @@
+:root {
+  color-scheme: dark;
+  font-family: "Trebuchet MS", "Arial", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #6ec5ff 0%, #d8f4ff 100%);
+  color: #fff;
+}
+
+.page {
+  width: min(92vw, 560px);
+}
+
+.game-shell {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #2d4a72;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+}
+
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.hud h1 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.score-label {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #6ec5ff;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  background: rgba(12, 29, 46, 0.72);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.overlay h2 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+}
+
+.overlay p {
+  margin: 0 0 18px;
+  color: #e6f7ff;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #16324a;
+  background: #ffd166;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
