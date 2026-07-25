@@ -13,6 +13,12 @@ const PIPE_GAP = 180;
 const GROUND_HEIGHT = 80;
 const BIRD_RADIUS = 18;
 
+const birdSprite = new Image();
+birdSprite.src = "Flappy Bird.png";
+birdSprite.onload = () => prepareBirdSprite();
+let birdSpriteCanvas = null;
+let birdSpriteReady = false;
+
 let gameState = "ready";
 let bird;
 let pipes;
@@ -182,7 +188,46 @@ function drawPipes() {
   });
 }
 
+function prepareBirdSprite() {
+  if (birdSpriteCanvas || !birdSprite.complete || !birdSprite.naturalWidth) return;
+
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = birdSprite.width;
+  tempCanvas.height = birdSprite.height;
+  const tempCtx = tempCanvas.getContext("2d");
+  tempCtx.drawImage(birdSprite, 0, 0);
+
+  const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+
+    if (a > 0 && r > 220 && g > 220 && b > 220) {
+      data[i + 3] = 0;
+    }
+  }
+
+  tempCtx.putImageData(imageData, 0, 0);
+  birdSpriteCanvas = tempCanvas;
+  birdSpriteReady = true;
+}
+
 function drawBird() {
+  prepareBirdSprite();
+
+  if (birdSpriteReady && birdSpriteCanvas) {
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(Math.max(-0.6, Math.min(0.6, bird.velocity / 10)));
+    ctx.drawImage(birdSpriteCanvas, -bird.radius - 8, -bird.radius - 8, bird.radius * 2 + 16, bird.radius * 2 + 16);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.translate(bird.x, bird.y);
   ctx.rotate(Math.max(-0.6, Math.min(0.6, bird.velocity / 10)));
