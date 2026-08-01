@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flappy Bird</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/jpeg" href="Wing for Favicon.jpeg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -12,15 +15,45 @@
       <section class="game-shell">
         <header class="hud">
           <h1>Flappy Bird</h1>
-          <p class="score-label">Score: <span id="score">0</span></p>
+          <div class="hud-stats">
+            <p class="score-label">Score: <span id="score">0</span></p>
+            <p class="high-score-pill">Best: <span id="highScore">0</span></p>
+            <p class="coin-pill">Coins: <span id="coins">0</span></p>
+          </div>
         </header>
 
         <canvas id="gameCanvas" width="480" height="640"></canvas>
 
         <div id="overlay" class="overlay active">
-          <h2 id="overlayTitle">Ready to fly?</h2>
-          <p id="overlayText">Press Space, click, or tap to flap.</p>
-          <button id="startButton">Start Game</button>
+          <div class="hero-card">
+            <h2 id="overlayTitle">Flappy Bird</h2>
+            <p id="overlayText">Press play to start your run.</p>
+            <button id="startButton">Play</button>
+            <button class="skin-menu-toggle" id="skinMenuToggle" type="button">Shop</button>
+          </div>
+          <div class="skin-panel" id="skinPanel" aria-label="Bird skin selector">
+            <p class="shop-meta" id="shopCoins">Coins: 0</p>
+            <button class="skin-button active store-button" data-skin="green">Green</button>
+            <button class="skin-button store-button" data-skin="yellow">Yellow</button>
+            <button class="skin-button store-button" data-skin="red">Red</button>
+            <button class="skin-button store-button" data-skin="purple">Purple</button>
+            <button class="skin-button store-button" data-skin="rainbow">Rainbow</button>
+            <button class="skin-button store-button" data-skin="blue">Blue</button>
+            <button class="skin-button store-button" data-skin="ghost">Ghost</button>
+            <button class="skin-button store-button" data-skin="neon">Neon</button>
+            <button class="skin-button store-button" data-skin="sunset">Sunset</button>
+            <button class="skin-button store-button" data-skin="midnight">Midnight</button>
+            <button class="skin-button store-button" data-skin="aurora">Aurora</button>
+            <button class="skin-button store-button" data-skin="candy">Candy</button>
+            <div class="store-section-label">Backgrounds</div>
+            <button class="skin-button store-button background-button" data-background="sky">Sky</button>
+            <button class="skin-button store-button background-button" data-background="aurora-bg">Aurora</button>
+            <button class="skin-button store-button background-button" data-background="midnight-bg">Midnight</button>
+            <div class="store-section-label">Powerups</div>
+            <button class="skin-button store-button powerup-button" data-powerup="shield">Shield</button>
+            <button class="skin-button store-button powerup-button" data-powerup="magnet">Magnet</button>
+            <button class="skin-button store-button powerup-button" data-powerup="slow">Slow Mo</button>
+          </div>
         </div>
       </section>
     </main>

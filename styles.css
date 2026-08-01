@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
-  font-family: "Trebuchet MS", "Arial", sans-serif;
+  font-family: "Pixelify Sans", "Courier New", monospace;
+  font-synthesis: none;
 }
 
 * {
@@ -14,6 +15,7 @@ body {
   place-items: center;
   background: linear-gradient(180deg, #6ec5ff 0%, #d8f4ff 100%);
   color: #fff;
+  font-family: "Pixelify Sans", "Courier New", monospace;
 }
 
 .page {
@@ -39,12 +41,153 @@ body {
 .hud h1 {
   margin: 0;
   font-size: 1.45rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-.score-label {
+.hero-card {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  width: min(92%, 380px);
+  padding: 24px 20px;
+  border-radius: 20px;
+  background: rgba(18, 40, 66, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.skin-menu-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  margin-top: 0;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  background: #ff4d4d;
+}
+
+.skin-menu-toggle:hover {
+  background: #ff6b6b;
+}
+
+.skin-panel {
+  display: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(92%, 380px);
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.skin-panel.open {
+  display: grid;
+}
+
+.skin-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 9px 8px;
+  background: #1e7bd6;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.store-section-label {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #dcefff;
+}
+
+.powerup-button {
+  background: #8a3ff3;
+}
+
+.powerup-button:hover {
+  background: #a96bff;
+}
+
+.background-button {
+  background: #2f9e44;
+}
+
+.background-button:hover {
+  background: #40b35b;
+}
+
+.skin-button:hover {
+  transform: translateY(-1px);
+  background: #2f98ff;
+}
+
+.skin-button.active {
+  border-color: #fff;
+  background: #0d4d9b;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.skin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  filter: grayscale(0.3);
+}
+
+.skin-button .skin-cost {
+  font-size: 0.74rem;
+  opacity: 0.9;
+}
+
+.hud-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-label,
+.high-score-pill,
+.coin-pill {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
+}
+
+.high-score-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #f4f8ff;
+}
+
+.coin-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.25);
+  color: #fff2b8;
+}
+
+.shop-meta {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #fff2b8;
 }
 
 canvas {
@@ -61,8 +204,8 @@ canvas {
   place-items: center;
   text-align: center;
   padding: 24px;
-  background: rgba(12, 29, 46, 0.72);
-  backdrop-filter: blur(4px);
+  background: linear-gradient(135deg, rgba(12, 29, 46, 0.9), rgba(22, 50, 74, 0.84));
+  backdrop-filter: blur(6px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -76,11 +219,16 @@ canvas {
 .overlay h2 {
   margin: 0 0 8px;
   font-size: 2rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .overlay p {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: #e6f7ff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 button {
@@ -89,12 +237,16 @@ button {
   padding: 12px 20px;
   font-size: 1rem;
   font-weight: 700;
-  color: #16324a;
-  background: #ffd166;
+  color: #fff;
+  background: #ff0000;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: "Pixelify Sans", "Courier New", monospace;
 }
 
 button:hover {
   transform: translateY(-1px);
+  background: #ff3333;
 }
