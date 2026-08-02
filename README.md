@@ -1,2 +1,2 @@
-# Flappy-Bird
-Flappy Bird Game for testing
+# Sky Hopper
+A custom arcade-style action game with original branding and artwork.

@@ -21,7 +21,7 @@ const GROUND_HEIGHT = 80;
 const BIRD_RADIUS = 18;
 
 const skinPalette = {
-  green: { label: "Green", color: [70, 185, 95] },
+  green: { label: "Classic", color: [70, 185, 95] },
   yellow: { label: "Yellow", color: [240, 210, 60] },
   red: { label: "Red", color: [220, 70, 70] },
   purple: { label: "Purple", color: [150, 90, 240] },
@@ -36,12 +36,12 @@ const skinPalette = {
   aurora: { label: "Aurora", color: [120, 95, 255] },
   candy: { label: "Candy", color: [255, 90, 180] },
 };
-const skinCosts = { green: 0, yellow: 5, red: 8, purple: 12, rainbow: 20, blue: 15, ghost: 18, neon: 22, sunset: 16, midnight: 24, coral: 18, mint: 16, aurora: 20, candy: 18 };
-const powerupCosts = { shield: 18, magnet: 15, slow: 12 };
+const skinCosts = { green: 0, yellow: 8, red: 12, purple: 20, rainbow: 32, blue: 24, ghost: 28, neon: 36, sunset: 26, midnight: 34, coral: 28, mint: 24, aurora: 30, candy: 30 };
+const powerupCosts = { shield: 28, magnet: 24, slow: 20 };
 const powerupLabels = { shield: "Shield", magnet: "Magnet", slow: "Slow Mo" };
-const backgroundCosts = { sky: 0, "aurora-bg": 12, "midnight-bg": 18 };
+const backgroundCosts = { sky: 0, "aurora-bg": 20, "midnight-bg": 30 };
 const backgroundLabels = { sky: "Sky", "aurora-bg": "Aurora", "midnight-bg": "Midnight" };
-const cosmeticCosts = { trail: 10, glow: 14 };
+const cosmeticCosts = { trail: 16, glow: 22 };
 const cosmeticLabels = { trail: "Trail", glow: "Glow" };
 const unlockedSkins = new Set(["green"]);
 const unlockedPowerups = new Set();
@@ -49,7 +49,7 @@ const unlockedBackgrounds = new Set(["sky"]);
 const unlockedCosmetics = new Set();
 
 const birdSprite = new Image();
-birdSprite.src = "Flappy Bird.png";
+birdSprite.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="transparent"/><path d="M18 34c4-12 16-20 26-20 10 0 14 8 14 16 0 12-10 20-22 20-8 0-16-6-18-16Z" fill="#f59e0b"/><path d="M22 28c6-6 14-8 22-8 4 0 8 1 10 3-6 2-12 5-16 9-6 5-10 5-16 0Z" fill="#fbbf24"/><circle cx="31" cy="29" r="4" fill="#fff"/><circle cx="31" cy="29" r="2" fill="#111827"/><path d="M14 31c2 2 5 4 8 4" stroke="#111827" stroke-width="3" stroke-linecap="round"/><path d="M42 38c3 0 6 2 8 5" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/></svg>`);
 birdSprite.onload = () => prepareBirdSprites();
 let birdSpriteCanvases = {};
 let birdSpriteReady = false;
@@ -83,12 +83,14 @@ let bossLasers = [];
 let bossShipY = 220;
 let bossHitCooldown = 0;
 let jumpCount = 0;
+let bossTransitionSpeed = 0;
 let missionGoal = 5;
 let missionProgress = 0;
 let missionType = "score";
 let pipesSinceBoss = 0;
 let activeEnemies = [];
 let cosmeticParticles = [];
+let achievements = [];
 
 try {
   const savedCoins = Number(localStorage.getItem("flappyCoins") || 0);
@@ -114,6 +116,36 @@ function saveHighScore() {
   } catch (error) {
     // Ignore storage errors and keep the run in memory.
   }
+}
+
+function queueAchievement(title, text) {
+  achievements.push({ title, text, id: Date.now() + Math.random() });
+  if (achievements.length > 4) {
+    achievements.shift();
+  }
+}
+
+function drawAchievements() {
+  if (!achievements.length) return;
+
+  const panelX = canvas.width - 170;
+  const panelY = 24;
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 14, 24, 0.82)";
+  ctx.fillRect(panelX, panelY, 150, Math.min(achievements.length * 58, 232));
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.strokeRect(panelX, panelY, 150, Math.min(achievements.length * 58, 232));
+
+  achievements.forEach((achievement, index) => {
+    const y = panelY + 12 + index * 58;
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "12px Pixelify Sans";
+    ctx.fillText(achievement.title, panelX + 10, y);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = "10px Pixelify Sans";
+    ctx.fillText(achievement.text, panelX + 10, y + 18);
+  });
+  ctx.restore();
 }
 
 function updateHud() {
@@ -258,12 +290,14 @@ function resetGame() {
   bossShipY = 220;
   bossHitCooldown = 0;
   jumpCount = 0;
+  bossTransitionSpeed = 0;
   missionGoal = 5 + Math.floor(score / 10) + Math.floor(highScore / 10);
   missionProgress = 0;
   missionType = Math.random() < 0.5 ? "score" : "coins";
   pipesSinceBoss = 0;
   activeEnemies = [];
   cosmeticParticles = [];
+  achievements = [];
   updateHud();
   addPipe();
 }
@@ -271,7 +305,7 @@ function resetGame() {
 function startGame() {
   resetGame();
   gameState = "playing";
-  overlayTitle.textContent = "Flappy Bird";
+  overlayTitle.textContent = "Sky Hopper";
   overlayText.textContent = "";
   startButton.textContent = "Play";
   overlay.classList.remove("active");
@@ -293,7 +327,7 @@ function addPipe() {
   const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
   const pipeColors = ["#f2d64b", "#3fb34f", "#2f7dff"];
   const pipeColor = pipeColors[Math.floor(Math.random() * pipeColors.length)];
-  const hasCoin = Math.random() < 0.45;
+  const hasCoin = Math.random() < 0.24;
   const hasEnemy = !bossActive && Math.random() < 0.22;
 
   pipes.push({
@@ -347,6 +381,7 @@ function beginBossEncounter() {
   bossLevel += 1;
   bossTransitionState = "entering";
   bossTransitionProgress = 0;
+  bossTransitionSpeed = 0;
   bossActive = false;
   bossHealth = 15 + bossLevel * 2;
   bossLaserWidth = 18 + bossLevel * 4;
@@ -367,7 +402,8 @@ function update() {
   if (gameState === "transitioning") {
     if (bossTransitionState === "entering") {
       bossTransitionProgress += 1;
-      cameraOffsetY = -Math.round((bossTransitionProgress / bossTransitionFrames) * 140);
+      bossTransitionSpeed = Math.min(1, bossTransitionProgress / 18);
+      cameraOffsetY = -Math.round(Math.sin((bossTransitionProgress / bossTransitionFrames) * Math.PI / 2) * 150);
       if (bossTransitionProgress >= bossTransitionFrames) {
         bossTransitionProgress = 0;
         bossTransitionState = "fighting";
@@ -381,7 +417,8 @@ function update() {
 
     if (bossTransitionState === "exiting") {
       bossTransitionProgress += 1;
-      cameraOffsetY = -Math.round((1 - bossTransitionProgress / bossTransitionFrames) * 140);
+      bossTransitionSpeed = Math.min(1, bossTransitionProgress / 18);
+      cameraOffsetY = -Math.round(Math.sin((1 - bossTransitionProgress / bossTransitionFrames) * Math.PI / 2) * 150);
       if (bossTransitionProgress >= bossTransitionFrames) {
         bossTransitionProgress = 0;
         bossTransitionState = "idle";
@@ -443,6 +480,33 @@ function update() {
     });
   }
 
+  bossLasers.forEach((laser) => {
+    const laserBox = {
+      left: laser.x,
+      right: laser.x + laser.width,
+      top: laser.y,
+      bottom: laser.y + laser.height,
+    };
+
+    const laserHit =
+      birdBox.right > laserBox.left &&
+      birdBox.left < laserBox.right &&
+      birdBox.bottom > laserBox.top &&
+      birdBox.top < laserBox.bottom;
+
+    if (laserHit && !laser.hit) {
+      laser.hit = true;
+      playerHealth -= 1;
+      if (playerHealth <= 0) {
+        endGame();
+        return;
+      }
+      updateHud();
+    }
+  });
+
+  bossLasers = bossLasers.filter((laser) => !laser.hit || laser.x + laser.width > -20);
+
   for (let i = pipes.length - 1; i >= 0; i -= 1) {
     const pipe = pipes[i];
     pipe.x -= movementSpeed;
@@ -484,6 +548,11 @@ function update() {
         highScore = score;
         saveHighScore();
       }
+      if (score >= 10 && score < 20) {
+        queueAchievement("First Milestone", "10 points");
+      } else if (score >= 25) {
+        queueAchievement("Rising Star", "25 points");
+      }
       updateHud();
     }
 
@@ -503,8 +572,12 @@ function update() {
 
       if (enemyHit) {
         pipe.enemy.alive = false;
-        endGame();
-        return;
+        playerHealth -= 2;
+        if (playerHealth <= 0) {
+          endGame();
+          return;
+        }
+        updateHud();
       }
     }
 
@@ -539,33 +612,6 @@ function update() {
         updateHud();
       }
     }
-
-    bossLasers.forEach((laser) => {
-      const laserBox = {
-        left: laser.x,
-        right: laser.x + laser.width,
-        top: laser.y,
-        bottom: laser.y + laser.height,
-      };
-
-      const laserHit =
-        birdBox.right > laserBox.left &&
-        birdBox.left < laserBox.right &&
-        birdBox.bottom > laserBox.top &&
-        birdBox.top < laserBox.bottom;
-
-      if (laserHit && !laser.hit) {
-        laser.hit = true;
-        playerHealth -= 1;
-        if (playerHealth <= 0) {
-          endGame();
-          return;
-        }
-        updateHud();
-      }
-    });
-
-    bossLasers = bossLasers.filter((laser) => !laser.hit || laser.x + laser.width > -20);
 
     const pipeTopBox = {
       left: pipe.x,
@@ -743,56 +789,50 @@ function drawBossShip() {
 
   ctx.save();
   ctx.translate(canvas.width - 106, bossShipY);
-  ctx.fillStyle = bossColor;
 
-  if (variant === 0) {
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(60, 12);
-    ctx.lineTo(54, 32);
-    ctx.lineTo(20, 30);
-    ctx.lineTo(0, 56);
-    ctx.lineTo(-20, 30);
-    ctx.lineTo(-56, 32);
-    ctx.lineTo(-60, 12);
-    ctx.closePath();
-    ctx.fill();
-  } else if (variant === 1) {
-    ctx.fillRect(-36, -8, 72, 24);
-    ctx.fillRect(-18, 16, 36, 28);
-    ctx.fillRect(-44, 10, 16, 10);
-    ctx.fillRect(28, 10, 16, 10);
-  } else if (variant === 2) {
-    ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(54, 8);
-    ctx.lineTo(44, 34);
-    ctx.lineTo(12, 28);
-    ctx.lineTo(0, 54);
-    ctx.lineTo(-12, 28);
-    ctx.lineTo(-44, 34);
-    ctx.lineTo(-54, 8);
-    ctx.closePath();
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(-8, -8);
-    ctx.lineTo(54, 0);
-    ctx.lineTo(66, 18);
-    ctx.lineTo(28, 28);
-    ctx.lineTo(0, 56);
-    ctx.lineTo(-28, 28);
-    ctx.lineTo(-66, 18);
-    ctx.lineTo(-54, 0);
-    ctx.closePath();
-    ctx.fill();
-  }
+  ctx.fillStyle = bossColor;
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 44, 20, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#2f2f4f";
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 28, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.fillStyle = bossAccent;
-  ctx.fillRect(-12, 12, 24, 16);
-  ctx.fillRect(-34, 18, 16, 8);
-  ctx.fillRect(20, 18, 16, 8);
-  ctx.fillRect(-16, -10, 32, 10);
+  ctx.beginPath();
+  ctx.arc(0, 10, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.7)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-20, 2);
+  ctx.quadraticCurveTo(0, -25, 20, 2);
+  ctx.stroke();
+
+  if (variant === 0) {
+    ctx.fillStyle = bossAccent;
+    ctx.fillRect(-10, 0, 20, 8);
+  } else if (variant === 1) {
+    ctx.fillStyle = bossAccent;
+    ctx.fillRect(-16, 0, 12, 8);
+    ctx.fillRect(4, 0, 12, 8);
+  } else if (variant === 2) {
+    ctx.fillStyle = bossAccent;
+    ctx.fillRect(-8, -8, 16, 8);
+  } else {
+    ctx.fillStyle = bossAccent;
+    ctx.fillRect(-18, 0, 36, 6);
+  }
+
+  ctx.fillStyle = "#111827";
+  ctx.beginPath();
+  ctx.arc(-14, 10, 4, 0, Math.PI * 2);
+  ctx.arc(14, 10, 4, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -859,6 +899,43 @@ function isBirdBodyPixel(r, g, b, a) {
 }
 
 function createSkinSprite(skinName) {
+  if (skinName === "green") {
+    const classicCanvas = document.createElement("canvas");
+    classicCanvas.width = birdSprite.width;
+    classicCanvas.height = birdSprite.height;
+    const classicCtx = classicCanvas.getContext("2d");
+    classicCtx.drawImage(birdSprite, 0, 0);
+
+    const imageData = classicCtx.getImageData(0, 0, classicCanvas.width, classicCanvas.height);
+    const data = imageData.data;
+
+    for (let y = 0; y < classicCanvas.height; y += 1) {
+      for (let x = 0; x < classicCanvas.width; x += 1) {
+        const index = (y * classicCanvas.width + x) * 4;
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const a = data[index + 3];
+
+        if (a <= 0) continue;
+
+        if (r > 220 && g > 220 && b > 220) {
+          data[index + 3] = 0;
+          continue;
+        }
+
+        const isOrangeTrim = r > 180 && g > 80 && g < 180 && b < 140 && r >= g && r >= b;
+        if (isOrangeTrim) {
+          data[index] = 255;
+          data[index + 1] = 140;
+          data[index + 2] = 60;
+        }
+      }
+    }
+
+    classicCtx.putImageData(imageData, 0, 0);
+    return classicCanvas;
+  }
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = birdSprite.width;
   tempCanvas.height = birdSprite.height;
@@ -982,6 +1059,7 @@ function draw() {
   drawCosmetics();
   drawGround(theme);
   ctx.restore();
+  drawAchievements();
 }
 
 function loop() {
@@ -1020,7 +1098,7 @@ window.addEventListener("keydown", (event) => {
 resetGame();
 draw();
 updateHud();
-overlayTitle.textContent = "Flappy Bird";
+overlayTitle.textContent = "Sky Hopper";
 overlayText.textContent = "";
 startButton.textContent = "Play";
 overlay.classList.add("active");
