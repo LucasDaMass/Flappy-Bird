@@ -130,6 +130,14 @@ body {
   background: #40b35b;
 }
 
+.cosmetic-button {
+  background: #d97706;
+}
+
+.cosmetic-button:hover {
+  background: #f59e0b;
+}
+
 .skin-button:hover {
   transform: translateY(-1px);
   background: #2f98ff;
@@ -178,6 +186,13 @@ body {
   border-radius: 999px;
   background: rgba(255, 209, 102, 0.25);
   color: #fff2b8;
+}
+
+.mission-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #f4f8ff;
 }
 
 .shop-meta {

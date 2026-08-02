@@ -4,10 +4,12 @@ const scoreEl = document.getElementById("score");
 const highScoreEl = document.getElementById("highScore");
 const coinsEl = document.getElementById("coins");
 const shopCoinsEl = document.getElementById("shopCoins");
+const missionLabel = document.getElementById("missionLabel");
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlayText = document.getElementById("overlayText");
 const startButton = document.getElementById("startButton");
+const bossHealthLabel = document.getElementById("bossHealthLabel");
 const skinMenuToggle = document.getElementById("skinMenuToggle");
 const skinPanel = document.getElementById("skinPanel");
 
@@ -39,9 +41,12 @@ const powerupCosts = { shield: 18, magnet: 15, slow: 12 };
 const powerupLabels = { shield: "Shield", magnet: "Magnet", slow: "Slow Mo" };
 const backgroundCosts = { sky: 0, "aurora-bg": 12, "midnight-bg": 18 };
 const backgroundLabels = { sky: "Sky", "aurora-bg": "Aurora", "midnight-bg": "Midnight" };
+const cosmeticCosts = { trail: 10, glow: 14 };
+const cosmeticLabels = { trail: "Trail", glow: "Glow" };
 const unlockedSkins = new Set(["green"]);
 const unlockedPowerups = new Set();
 const unlockedBackgrounds = new Set(["sky"]);
+const unlockedCosmetics = new Set();
 
 const birdSprite = new Image();
 birdSprite.src = "Flappy Bird.png";
@@ -51,6 +56,7 @@ let birdSpriteReady = false;
 let currentSkin = "green";
 let currentPowerup = null;
 let currentBackground = "sky";
+let currentCosmetic = null;
 const storeButtons = Array.from(document.querySelectorAll(".store-button"));
 
 let gameState = "ready";
@@ -62,6 +68,27 @@ let coins = 0;
 let animationFrameId;
 let shieldCharges = 0;
 let slowTimer = 0;
+let comboCount = 0;
+let playerHealth = 5;
+let bossActive = false;
+let bossLevel = 0;
+let bossTransitionState = "idle";
+let bossTransitionProgress = 0;
+let bossTransitionFrames = 70;
+let cameraOffsetY = 0;
+let bossHealth = 0;
+let bossLaserWidth = 20;
+let bossShootTimer = 0;
+let bossLasers = [];
+let bossShipY = 220;
+let bossHitCooldown = 0;
+let jumpCount = 0;
+let missionGoal = 5;
+let missionProgress = 0;
+let missionType = "score";
+let pipesSinceBoss = 0;
+let activeEnemies = [];
+let cosmeticParticles = [];
 
 try {
   const savedCoins = Number(localStorage.getItem("flappyCoins") || 0);
@@ -94,6 +121,8 @@ function updateHud() {
   highScoreEl.textContent = highScore;
   coinsEl.textContent = coins;
   shopCoinsEl.textContent = `Coins: ${coins}`;
+  missionLabel.textContent = `Mission: ${missionType === "score" ? `${missionProgress}/${missionGoal} score` : `${missionProgress}/${missionGoal} coins`}`;
+  bossHealthLabel.textContent = bossActive ? `HP: ${playerHealth} | Boss: ${bossHealth}` : `HP: ${playerHealth}`;
 
   storeButtons.forEach((button) => {
     if (button.dataset.skin) {
@@ -122,6 +151,16 @@ function updateHud() {
       const unlocked = unlockedBackgrounds.has(backgroundName);
       const isCurrent = currentBackground === backgroundName;
       const label = backgroundLabels[backgroundName] || backgroundName;
+
+      button.innerHTML = `<span>${label}</span><span class="skin-cost">${unlocked ? (isCurrent ? "Equipped" : "Owned") : `${cost} coins`}</span>`;
+      button.classList.toggle("active", isCurrent);
+      button.disabled = !unlocked && coins < cost;
+    } else if (button.dataset.cosmetic) {
+      const cosmeticName = button.dataset.cosmetic;
+      const cost = cosmeticCosts[cosmeticName] || 0;
+      const unlocked = unlockedCosmetics.has(cosmeticName);
+      const isCurrent = currentCosmetic === cosmeticName;
+      const label = cosmeticLabels[cosmeticName] || cosmeticName;
 
       button.innerHTML = `<span>${label}</span><span class="skin-cost">${unlocked ? (isCurrent ? "Equipped" : "Owned") : `${cost} coins`}</span>`;
       button.classList.toggle("active", isCurrent);
@@ -178,6 +217,22 @@ function setBackground(backgroundName) {
   updateHud();
 }
 
+function setCosmetic(cosmeticName) {
+  if (!cosmeticCosts[cosmeticName]) return;
+
+  if (!unlockedCosmetics.has(cosmeticName)) {
+    const cost = cosmeticCosts[cosmeticName] || 0;
+    if (coins < cost) return;
+
+    coins -= cost;
+    unlockedCosmetics.add(cosmeticName);
+    saveCoins();
+  }
+
+  currentCosmetic = currentCosmetic === cosmeticName ? null : cosmeticName;
+  updateHud();
+}
+
 function resetGame() {
   bird = {
     x: 120,
@@ -189,6 +244,26 @@ function resetGame() {
   score = 0;
   shieldCharges = 0;
   slowTimer = 0;
+  comboCount = 0;
+  playerHealth = 5;
+  bossActive = false;
+  bossLevel = 0;
+  bossTransitionState = "idle";
+  bossTransitionProgress = 0;
+  cameraOffsetY = 0;
+  bossHealth = 0;
+  bossLaserWidth = 20;
+  bossShootTimer = 0;
+  bossLasers = [];
+  bossShipY = 220;
+  bossHitCooldown = 0;
+  jumpCount = 0;
+  missionGoal = 5 + Math.floor(score / 10) + Math.floor(highScore / 10);
+  missionProgress = 0;
+  missionType = Math.random() < 0.5 ? "score" : "coins";
+  pipesSinceBoss = 0;
+  activeEnemies = [];
+  cosmeticParticles = [];
   updateHud();
   addPipe();
 }
@@ -197,7 +272,7 @@ function startGame() {
   resetGame();
   gameState = "playing";
   overlayTitle.textContent = "Flappy Bird";
-  overlayText.textContent = "Press play to start your run.";
+  overlayText.textContent = "";
   startButton.textContent = "Play";
   overlay.classList.remove("active");
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -219,6 +294,7 @@ function addPipe() {
   const pipeColors = ["#f2d64b", "#3fb34f", "#2f7dff"];
   const pipeColor = pipeColors[Math.floor(Math.random() * pipeColors.length)];
   const hasCoin = Math.random() < 0.45;
+  const hasEnemy = !bossActive && Math.random() < 0.22;
 
   pipes.push({
     x: canvas.width + 20,
@@ -227,6 +303,14 @@ function addPipe() {
     width: PIPE_WIDTH,
     color: pipeColor,
     passed: false,
+    enemy: hasEnemy
+      ? {
+          x: canvas.width + 20 + PIPE_WIDTH / 2,
+          y: topHeight + 24,
+          radius: 10,
+          alive: true,
+        }
+      : null,
     coin: hasCoin
       ? {
           x: canvas.width + 20 + PIPE_WIDTH / 2,
@@ -239,24 +323,77 @@ function addPipe() {
 }
 
 function flap() {
-  if (overlay.classList.contains("active") && gameState !== "playing") {
-    return;
-  }
-
   if (gameState === "ready") {
     startGame();
     return;
   }
 
   if (gameState === "playing") {
+    jumpCount += 1;
+    if (bossActive && jumpCount % 5 === 0) {
+      bossHealth = Math.max(0, bossHealth - 5);
+      bossHitCooldown = 8;
+      updateHud();
+    }
     bird.velocity = FLAP_STRENGTH;
   } else if (gameState === "over") {
     startGame();
   }
 }
 
+function beginBossEncounter() {
+  if (bossActive || bossTransitionState !== "idle") return;
+
+  bossLevel += 1;
+  bossTransitionState = "entering";
+  bossTransitionProgress = 0;
+  bossActive = false;
+  bossHealth = 15 + bossLevel * 2;
+  bossLaserWidth = 18 + bossLevel * 4;
+  bossShootTimer = 0;
+  bossLasers = [];
+  bossShipY = 180 + (bossLevel % 3) * 60;
+  bossHitCooldown = 0;
+  pipes = [];
+  pipesSinceBoss = 0;
+  gameState = "transitioning";
+  cameraOffsetY = 0;
+  updateHud();
+}
+
 function update() {
-  if (gameState !== "playing") return;
+  if (gameState !== "playing" && gameState !== "transitioning") return;
+
+  if (gameState === "transitioning") {
+    if (bossTransitionState === "entering") {
+      bossTransitionProgress += 1;
+      cameraOffsetY = -Math.round((bossTransitionProgress / bossTransitionFrames) * 140);
+      if (bossTransitionProgress >= bossTransitionFrames) {
+        bossTransitionProgress = 0;
+        bossTransitionState = "fighting";
+        bossActive = true;
+        bossShootTimer = 0;
+        gameState = "playing";
+        updateHud();
+      }
+      return;
+    }
+
+    if (bossTransitionState === "exiting") {
+      bossTransitionProgress += 1;
+      cameraOffsetY = -Math.round((1 - bossTransitionProgress / bossTransitionFrames) * 140);
+      if (bossTransitionProgress >= bossTransitionFrames) {
+        bossTransitionProgress = 0;
+        bossTransitionState = "idle";
+        bossActive = false;
+        bossLasers = [];
+        cameraOffsetY = 0;
+        gameState = "playing";
+        updateHud();
+      }
+      return;
+    }
+  }
 
   if (slowTimer > 0) {
     slowTimer -= 1;
@@ -271,6 +408,41 @@ function update() {
     return;
   }
 
+  if (bossHitCooldown > 0) {
+    bossHitCooldown -= 1;
+  }
+
+  const birdBox = {
+    left: bird.x - bird.radius,
+    right: bird.x + bird.radius,
+    top: bird.y - bird.radius,
+    bottom: bird.y + bird.radius,
+  };
+
+  if (bossActive) {
+    bossShootTimer -= 1;
+    bossShipY = 180 + Math.sin((bossLevel + bossShootTimer) / 26) * (80 + bossLevel * 4);
+
+    if (bossShootTimer <= 0) {
+      bossShootTimer = Math.max(20, 42 - bossLevel * 3);
+      const targetY = bird.y + Math.sin(bossLevel) * 12;
+      const shotY = Math.max(80, Math.min(canvas.height - GROUND_HEIGHT - 50, targetY));
+      bossLasers.push({
+        x: canvas.width - 110,
+        y: shotY,
+        width: bossLaserWidth + 8,
+        height: 12 + bossLevel,
+        speed: 6 + bossLevel * 0.9,
+        hit: false,
+      });
+    }
+
+    bossLasers = bossLasers.filter((laser) => laser.x + laser.width > -20);
+    bossLasers.forEach((laser) => {
+      laser.x -= laser.speed;
+    });
+  }
+
   for (let i = pipes.length - 1; i >= 0; i -= 1) {
     const pipe = pipes[i];
     pipe.x -= movementSpeed;
@@ -279,9 +451,35 @@ function update() {
       pipe.coin.x = pipe.x + pipe.width / 2;
     }
 
+    if (pipe.enemy) {
+      pipe.enemy.x = pipe.x + pipe.width / 2;
+    }
+
     if (!pipe.passed && pipe.x + pipe.width < bird.x) {
       pipe.passed = true;
       score += 1;
+      comboCount += 1;
+      if (comboCount >= 3) {
+        score += 1;
+        coins += 1;
+        saveCoins();
+        comboCount = 0;
+      }
+      missionProgress += 1;
+      pipesSinceBoss += 1;
+      if (pipesSinceBoss >= 10) {
+        beginBossEncounter();
+        return;
+      }
+      if (missionType === "score") {
+        if (missionProgress >= missionGoal) {
+          coins += 2;
+          missionProgress = 0;
+          missionGoal = 6 + Math.floor(score / 8);
+          missionType = Math.random() < 0.5 ? "score" : "coins";
+          updateHud();
+        }
+      }
       if (score > highScore) {
         highScore = score;
         saveHighScore();
@@ -289,12 +487,26 @@ function update() {
       updateHud();
     }
 
-    const birdBox = {
-      left: bird.x - bird.radius,
-      right: bird.x + bird.radius,
-      top: bird.y - bird.radius,
-      bottom: bird.y + bird.radius,
-    };
+    if (pipe.enemy && pipe.enemy.alive) {
+      const enemyBox = {
+        left: pipe.enemy.x - pipe.enemy.radius,
+        right: pipe.enemy.x + pipe.enemy.radius,
+        top: pipe.enemy.y - pipe.enemy.radius,
+        bottom: pipe.enemy.y + pipe.enemy.radius,
+      };
+
+      const enemyHit =
+        birdBox.right > enemyBox.left &&
+        birdBox.left < enemyBox.right &&
+        birdBox.bottom > enemyBox.top &&
+        birdBox.top < enemyBox.bottom;
+
+      if (enemyHit) {
+        pipe.enemy.alive = false;
+        endGame();
+        return;
+      }
+    }
 
     if (pipe.coin && !pipe.coin.collected) {
       const coinBox = {
@@ -315,10 +527,45 @@ function update() {
       if (coinHit || magnetHit) {
         pipe.coin.collected = true;
         coins += 1;
+        missionProgress += 1;
+        if (missionType === "coins" && missionProgress >= missionGoal) {
+          coins += 2;
+          missionProgress = 0;
+          missionGoal = 6 + Math.floor(score / 8);
+          missionType = Math.random() < 0.5 ? "score" : "coins";
+          updateHud();
+        }
         saveCoins();
         updateHud();
       }
     }
+
+    bossLasers.forEach((laser) => {
+      const laserBox = {
+        left: laser.x,
+        right: laser.x + laser.width,
+        top: laser.y,
+        bottom: laser.y + laser.height,
+      };
+
+      const laserHit =
+        birdBox.right > laserBox.left &&
+        birdBox.left < laserBox.right &&
+        birdBox.bottom > laserBox.top &&
+        birdBox.top < laserBox.bottom;
+
+      if (laserHit && !laser.hit) {
+        laser.hit = true;
+        playerHealth -= 1;
+        if (playerHealth <= 0) {
+          endGame();
+          return;
+        }
+        updateHud();
+      }
+    });
+
+    bossLasers = bossLasers.filter((laser) => !laser.hit || laser.x + laser.width > -20);
 
     const pipeTopBox = {
       left: pipe.x,
@@ -366,8 +613,24 @@ function update() {
     }
   }
 
-  if (pipes[pipes.length - 1].x < canvas.width - 220) {
+  if (!bossActive && (!pipes.length || pipes[pipes.length - 1].x < canvas.width - 220)) {
     addPipe();
+  }
+
+  if (bossActive) {
+    if (bossHealth <= 0) {
+      coins += 3;
+      saveCoins();
+      bossActive = false;
+      bossHitCooldown = 0;
+      jumpCount = 0;
+      bossTransitionState = "exiting";
+      bossTransitionProgress = 0;
+      gameState = "transitioning";
+      bossLasers = [];
+      updateHud();
+      return;
+    }
   }
 }
 
@@ -411,6 +674,8 @@ function drawGround(theme) {
 }
 
 function drawPipes() {
+  if (bossActive || bossTransitionState !== "idle") return;
+
   pipes.forEach((pipe) => {
     ctx.fillStyle = pipe.color;
     ctx.fillRect(pipe.x, 0, pipe.width, pipe.topHeight);
@@ -438,6 +703,119 @@ function drawCoins() {
     ctx.fill();
     ctx.restore();
   });
+}
+
+function drawEnemies() {
+  pipes.forEach((pipe) => {
+    if (!pipe.enemy || !pipe.enemy.alive) return;
+
+    ctx.save();
+    ctx.translate(pipe.enemy.x, pipe.enemy.y);
+    ctx.fillStyle = "#ff4d4d";
+    ctx.beginPath();
+    ctx.arc(0, 0, pipe.enemy.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(-3, -3, 6, 6);
+    ctx.restore();
+  });
+}
+
+function drawBossLasers() {
+  if (!bossActive) return;
+
+  bossLasers.forEach((laser) => {
+    ctx.save();
+    ctx.fillStyle = "#ff4d4d";
+    ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+    ctx.fillStyle = "#ffd166";
+    ctx.fillRect(laser.x + 4, laser.y + 2, laser.width - 8, laser.height - 4);
+    ctx.restore();
+  });
+}
+
+function drawBossShip() {
+  if (!bossActive && bossTransitionState === "idle") return;
+
+  const bossColor = bossLevel % 2 === 0 ? "#7dd3fc" : "#f472b6";
+  const bossAccent = bossLevel % 3 === 0 ? "#facc15" : "#ffffff";
+  const variant = bossLevel % 4;
+
+  ctx.save();
+  ctx.translate(canvas.width - 106, bossShipY);
+  ctx.fillStyle = bossColor;
+
+  if (variant === 0) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(60, 12);
+    ctx.lineTo(54, 32);
+    ctx.lineTo(20, 30);
+    ctx.lineTo(0, 56);
+    ctx.lineTo(-20, 30);
+    ctx.lineTo(-56, 32);
+    ctx.lineTo(-60, 12);
+    ctx.closePath();
+    ctx.fill();
+  } else if (variant === 1) {
+    ctx.fillRect(-36, -8, 72, 24);
+    ctx.fillRect(-18, 16, 36, 28);
+    ctx.fillRect(-44, 10, 16, 10);
+    ctx.fillRect(28, 10, 16, 10);
+  } else if (variant === 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(54, 8);
+    ctx.lineTo(44, 34);
+    ctx.lineTo(12, 28);
+    ctx.lineTo(0, 54);
+    ctx.lineTo(-12, 28);
+    ctx.lineTo(-44, 34);
+    ctx.lineTo(-54, 8);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-8, -8);
+    ctx.lineTo(54, 0);
+    ctx.lineTo(66, 18);
+    ctx.lineTo(28, 28);
+    ctx.lineTo(0, 56);
+    ctx.lineTo(-28, 28);
+    ctx.lineTo(-66, 18);
+    ctx.lineTo(-54, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.fillStyle = bossAccent;
+  ctx.fillRect(-12, 12, 24, 16);
+  ctx.fillRect(-34, 18, 16, 8);
+  ctx.fillRect(20, 18, 16, 8);
+  ctx.fillRect(-16, -10, 32, 10);
+  ctx.restore();
+}
+
+function drawCosmetics() {
+  if (currentCosmetic === "trail") {
+    const trail = { x: bird.x - 16, y: bird.y };
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.arc(trail.x, trail.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (currentCosmetic === "glow") {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.radius + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function hslToRgb(h, s, l) {
@@ -591,17 +969,25 @@ function drawBird() {
 
 function draw() {
   const theme = getBackgroundTheme();
+
+  ctx.save();
+  ctx.translate(0, cameraOffsetY);
   drawBackground(theme);
   drawPipes();
   drawCoins();
+  drawEnemies();
+  drawBossLasers();
+  drawBossShip();
   drawBird();
+  drawCosmetics();
   drawGround(theme);
+  ctx.restore();
 }
 
 function loop() {
   update();
   draw();
-  if (gameState === "playing") {
+  if (gameState === "playing" || gameState === "transitioning") {
     animationFrameId = requestAnimationFrame(loop);
   }
 }
@@ -619,6 +1005,8 @@ storeButtons.forEach((button) => {
       setPowerup(button.dataset.powerup);
     } else if (button.dataset.background) {
       setBackground(button.dataset.background);
+    } else if (button.dataset.cosmetic) {
+      setCosmetic(button.dataset.cosmetic);
     }
   });
 });
@@ -632,7 +1020,7 @@ window.addEventListener("keydown", (event) => {
 resetGame();
 draw();
 updateHud();
-overlayTitle.textContent = "Shop";
-overlayText.textContent = "Collect coins, unlock skins, and press Play.";
+overlayTitle.textContent = "Flappy Bird";
+overlayText.textContent = "";
 startButton.textContent = "Play";
 overlay.classList.add("active");
